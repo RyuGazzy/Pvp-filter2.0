@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LPM PvP · IV Filter Generator</title>
+<style>
+  :root{
+    --bg:#090b11;
+    --bg-2:#0c0f17;
+    --panel:#12161f;
+    --panel-2:#181d29;
+    --panel-3:#1f2533;
+    --line:#252c3b;
+    --line-2:#323b50;
+    --ink:#eef1f8;
+    --muted:#8b94ad;
+    --faint:#586176;
+    --brand:#2fe79a;
+    --brand-dim:#1f9c6b;
+    --great:#5bb8e8;
+    --ultra:#f6c744;
+    --master:#b583ff;
+    --little:#ff7c9a;
+    --hundo:#2fe79a;
+    --nundo:#ff6b81;
+    --r:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(1100px 600px at 88% -8%, rgba(47,231,154,.08), transparent 55%),
+      radial-gradient(800px 500px at -5% 2%, rgba(181,131,255,.09), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,sans-serif;
+    line-height:1.5;min-height:100vh;-webkit-font-smoothing:antialiased;
+    letter-spacing:-.005em;
+  }
+  .mono{font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+  .wrap{max-width:1000px;margin:0 auto;padding:24px 18px 90px}
+  a{color:var(--brand);text-decoration:none}
+
+  /* ============ HERO ============ */
+  header{margin-bottom:22px}
+  .brandline{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+  .mark{
+    width:42px;height:46px;flex-shrink:0;filter:drop-shadow(0 4px 14px rgba(47,231,154,.35));
+  }
+  .wordmark{display:flex;flex-direction:column;line-height:1}
+  .wordmark .top{
+    font-size:clamp(26px,6.5vw,38px);font-weight:800;letter-spacing:-.03em;
+  }
+  .wordmark .top .pvp{color:var(--brand)}
+  .wordmark .eyebrow{
+    font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--muted);
+    margin-top:6px;
+  }
+  .lead{color:var(--muted);max-width:62ch;font-size:14.5px;margin-top:4px}
+  .lead code{
+    font-family:ui-monospace,monospace;font-size:12.5px;color:var(--ink);
+    background:var(--panel-2);padding:1px 6px;border-radius:5px;border:1px solid var(--line);
+  }
+
+  .status{
+    display:inline-flex;align-items:center;gap:9px;margin-top:16px;
+    padding:7px 14px;border:1px solid var(--line);border-radius:999px;
+    background:var(--panel);font-size:12.5px;color:var(--muted);
+  }
+  .status .dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+  .status.ok .dot{background:var(--brand);box-shadow:0 0 0 0 rgba(47,231,154,.5);animation:pulse 2.2s infinite}
+  .status.err{border-color:rgba(255,107,129,.4);color:#ffb3bd}
+  .status.err .dot{background:var(--nundo)}
+  @keyframes pulse{70%{box-shadow:0 0 0 7px rgba(47,231,154,0)}100%{box-shadow:0 0 0 0 rgba(47,231,154,0)}}
+
+  .uploadRow{
+    display:none;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;
+    padding:13px 16px;border:1px solid rgba(255,107,129,.35);border-radius:var(--r);
+    background:rgba(255,107,129,.06);font-size:13px;
+  }
+  .uploadRow.show{display:flex}
+  .upload-btn{
+    display:inline-block;cursor:pointer;background:var(--panel-2);
+    border:1px solid var(--line-2);border-radius:9px;padding:8px 14px;
+    font-size:13px;font-weight:600;transition:.15s;
+  }
+  .upload-btn:hover{border-color:var(--brand);color:var(--brand)}
+  .upload-btn input{display:none}
+
+  /* ============ CONTROL DECK ============ */
+  .deck{
+    background:linear-gradient(180deg,var(--panel),var(--bg-2));
+    border:1px solid var(--line);border-radius:20px;padding:18px;
+    box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 24px 60px -40px rgba(0,0,0,.9);
+  }
+  .deck-label{
+    font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint);
+    margin:0 0 10px 2px;font-weight:700;
+  }
+  .deck-label:not(:first-child){margin-top:20px}
+
+  /* mode segmented */
+  .seg{
+    display:inline-flex;gap:4px;padding:4px;background:var(--bg);
+    border:1px solid var(--line);border-radius:12px;
+  }
+  .seg button{
+    border:none;background:none;color:var(--muted);cursor:pointer;
+    padding:8px 22px;border-radius:9px;font-size:14px;font-weight:600;
+    font-family:inherit;transition:.15s;
+  }
+  .seg button:hover{color:var(--ink)}
+  .seg button.active{background:var(--brand);color:#06231a}
+  .seg button[data-mode="shadow"].active{background:var(--master);color:#1a0c2e}
+
+  /* search */
+  .search-box{position:relative;margin-top:4px}
+  .search-box::before{
+    content:"⌕";position:absolute;left:15px;top:50%;transform:translateY(-50%);
+    color:var(--faint);font-size:18px;pointer-events:none;
+  }
+  input[type=text]{
+    width:100%;background:var(--bg);border:1px solid var(--line);
+    border-radius:11px;padding:13px 14px 13px 40px;color:var(--ink);font-size:15px;
+    outline:none;transition:border-color .15s,box-shadow .15s;font-family:inherit;
+  }
+  input[type=text]:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(47,231,154,.13)}
+  input[type=text]:disabled{opacity:.55}
+  .suggest{
+    position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;
+    background:var(--panel-2);border:1px solid var(--line-2);border-radius:11px;
+    max-height:288px;overflow-y:auto;display:none;
+    box-shadow:0 18px 50px -20px rgba(0,0,0,.9);
+  }
+  .suggest.open{display:block}
+  .suggest div{
+    padding:11px 15px;cursor:pointer;font-size:14px;display:flex;
+    justify-content:space-between;gap:10px;align-items:center;
+  }
+  .suggest div + div{border-top:1px solid var(--line)}
+  .suggest div:hover,.suggest div.active{background:rgba(47,231,154,.1)}
+  .suggest .dex{color:var(--faint);font-family:ui-monospace,monospace;font-size:12px}
+
+  /* chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .chips:empty{margin-top:0}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;background:var(--panel-2);
+    border:1px solid var(--line-2);border-radius:999px;padding:6px 7px 6px 14px;
+    font-size:13.5px;font-weight:500;
+  }
+  .chip .dexn{color:var(--faint);font-family:ui-monospace,monospace;font-size:11.5px}
+  .chip button{
+    background:var(--panel-3);border:none;color:var(--muted);cursor:pointer;
+    width:22px;height:22px;border-radius:50%;font-size:14px;line-height:1;
+    display:grid;place-items:center;transition:.15s;
+  }
+  .chip button:hover{background:var(--nundo);color:#fff}
+
+  /* leagues */
+  .lg-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  @media(min-width:560px){.lg-grid{grid-template-columns:1fr 1fr 1fr 1fr}}
+  .lg-toggle{
+    --c:var(--line-2);
+    position:relative;display:flex;flex-direction:column;gap:3px;cursor:pointer;
+    padding:12px 13px;border:1.5px solid var(--line);border-radius:13px;
+    background:var(--bg);transition:.15s;user-select:none;overflow:hidden;
+  }
+  .lg-toggle.great{--c:var(--great)} .lg-toggle.ultra{--c:var(--ultra)}
+  .lg-toggle.master{--c:var(--master)} .lg-toggle.little{--c:var(--little)}
+  .lg-toggle:hover{border-color:var(--c)}
+  .lg-toggle input{position:absolute;opacity:0;pointer-events:none}
+  .lg-toggle .nm{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+  .lg-toggle .nm::before{
+    content:"";width:9px;height:9px;border-radius:50%;background:var(--c);
+    opacity:.4;transition:.15s;box-shadow:0 0 0 0 var(--c);
+  }
+  .lg-toggle .cap{font-size:11px;color:var(--faint);font-family:ui-monospace,monospace;padding-left:16px}
+  .lg-toggle:has(input:checked){
+    border-color:var(--c);
+    background:color-mix(in srgb, var(--c) 12%, var(--bg));
+  }
+  .lg-toggle:has(input:checked) .nm::before{opacity:1;box-shadow:0 0 10px 0 var(--c)}
+  .lg-toggle:has(input:checked) .cap{color:var(--muted)}
+
+  /* ranks */
+  .rank-row input[type=text]{padding-left:14px;font-family:ui-monospace,monospace;letter-spacing:.02em}
+  .hint{font-size:11.5px;color:var(--faint);margin-top:8px;font-family:ui-monospace,monospace;line-height:1.5}
+
+  /* evo toggle */
+  .evo-toggle{
+    display:flex;align-items:flex-start;gap:12px;margin-top:11px;
+    padding:13px 14px;border:1px solid var(--line);border-radius:13px;
+    background:var(--bg);cursor:pointer;user-select:none;transition:.15s;
+  }
+  .evo-toggle:hover{border-color:var(--master)}
+  .evo-toggle input{position:absolute;opacity:0;pointer-events:none}
+  .evo-toggle .box{
+    width:20px;height:20px;border-radius:6px;border:2px solid var(--line-2);
+    flex-shrink:0;display:grid;place-items:center;transition:.15s;margin-top:1px;
+  }
+  .evo-toggle .box svg{opacity:0;transition:.15s}
+  .evo-toggle:has(input:checked) .box{background:var(--master);border-color:var(--master)}
+  .evo-toggle:has(input:checked) .box svg{opacity:1}
+  .evo-text{font-size:13px;color:var(--muted);line-height:1.45}
+  .evo-text strong{color:var(--ink);font-weight:700}
+
+  /* actions */
+  .actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
+  .btn{
+    border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink);
+    padding:12px 22px;border-radius:11px;font-size:14px;font-weight:700;
+    cursor:pointer;transition:.15s;font-family:inherit;
+  }
+  .btn:hover:not(:disabled){border-color:var(--brand)}
+  .btn.primary{
+    background:var(--brand);color:#06231a;border-color:var(--brand);
+    box-shadow:0 8px 24px -10px rgba(47,231,154,.6);
+  }
+  .btn.primary:hover:not(:disabled){filter:brightness(1.08)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .meta{color:var(--faint);font-size:12px;font-family:ui-monospace,monospace;margin-left:auto}
+
+  /* ============ RESULTS ============ */
+  .output{display:grid;gap:16px;margin-top:24px}
+  .empty{
+    text-align:center;padding:58px 22px;color:var(--muted);
+    border:1px dashed var(--line-2);border-radius:18px;font-size:14px;
+  }
+  .empty svg{width:46px;height:50px;margin-bottom:14px;opacity:.4}
+
+  .league-block{
+    --lg:var(--line-2);
+    background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    border-top:3px solid var(--lg);
+  }
+  .league-block.great{--lg:var(--great)} .league-block.ultra{--lg:var(--ultra)}
+  .league-block.master{--lg:var(--master)} .league-block.little{--lg:var(--little)}
+  .league-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:15px 18px;border-bottom:1px solid var(--line);
+  }
+  .league-head .name{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px}
+  .league-head .name .tag{
+    width:11px;height:11px;border-radius:50%;background:var(--lg);
+    box-shadow:0 0 12px 0 var(--lg);
+  }
+  .league-head .name .cap{
+    font-family:ui-monospace,monospace;font-size:11px;color:var(--faint);font-weight:500;
+  }
+  .copy-btn{
+    background:var(--panel-2);border:1px solid var(--line-2);color:var(--ink);
+    padding:8px 14px;border-radius:9px;font-size:12.5px;cursor:pointer;
+    font-family:ui-monospace,monospace;transition:.15s;white-space:nowrap;
+  }
+  .copy-btn:hover{border-color:var(--lg);color:var(--lg)}
+  .copy-btn.copied{background:var(--brand);color:#06231a;border-color:var(--brand)}
+
+  .strings{padding:8px 0}
+  .mon-head{
+    display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+    padding:13px 18px 7px;font-size:13.5px;font-weight:700;color:var(--ink);
+    border-top:1px solid var(--line);margin-top:6px;
+  }
+  .strings > .mon-head:first-child{border-top:none;margin-top:0}
+  .mon-head .arrow{color:var(--master);font-weight:600;font-size:12.5px}
+  .mon-head .catch{color:var(--brand)}
+  .mon-head .dexn{color:var(--faint);font-family:ui-monospace,monospace;font-weight:400;font-size:12px}
+  .mon-head .warn{
+    font-size:11px;font-family:ui-monospace,monospace;color:#ffc46b;font-weight:600;
+    border:1px solid rgba(255,196,107,.3);border-radius:6px;padding:1px 7px;margin-left:auto;
+  }
+
+  .row{
+    position:relative;display:flex;align-items:center;gap:12px;
+    padding:7px 18px;font-family:ui-monospace,monospace;font-size:13.5px;
+    background:linear-gradient(90deg,
+      color-mix(in srgb, var(--lg) 13%, transparent) var(--p,0%),
+      transparent var(--p,0%));
+  }
+  .row .rank{color:var(--faint);font-size:11px;width:20px;flex-shrink:0;text-align:right}
+  .row .code{color:var(--ink);font-weight:500}
+  .row .pct{color:var(--muted);font-size:12px;margin-left:auto}
+  .row .label{
+    font-size:10px;text-transform:uppercase;letter-spacing:.1em;
+    padding:2px 7px;border-radius:5px;font-weight:700;
+  }
+  .row.hundo .code{color:var(--hundo);font-weight:700}
+  .row.hundo .label{background:rgba(47,231,154,.15);color:var(--hundo)}
+  .row.nundo .code{color:var(--nundo)}
+  .row.nundo .label{background:rgba(255,107,129,.15);color:var(--nundo)}
+
+  footer{
+    margin-top:46px;color:var(--faint);font-size:11.5px;text-align:center;
+    font-family:ui-monospace,monospace;line-height:1.9;
+  }
+
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brandline">
+      <svg class="mark" viewBox="0 0 44 48" fill="none" aria-hidden="true">
+        <path d="M22 2 40 12.5V35.5L22 46 4 35.5V12.5Z" stroke="url(#g)" stroke-width="2.4" fill="rgba(47,231,154,.05)"/>
+        <path d="M22 14V34M22 24H33" stroke="url(#g)" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="22" cy="24" r="3" fill="#2fe79a"/>
+        <defs><linearGradient id="g" x1="4" y1="2" x2="40" y2="46">
+          <stop stop-color="#2fe79a"/><stop offset="1" stop-color="#b583ff"/>
+        </linearGradient></defs>
+      </svg>
+      <div class="wordmark">
+        <div class="top">LPM <span class="pvp">PvP</span></div>
+        <div class="eyebrow">IV Filter Generator</div>
+      </div>
+    </div>
+    <p class="lead">Generate filter strings (<code>dexid,att,def,sta</code>) for the best IVs per league — pick your ranks, plus hundo and nundo. Rankings from PvPoke data, computed locally in your browser.</p>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Loading game data…</span></div>
+    <div class="uploadRow" id="uploadRow">
+      <span>Can't load it automatically? Upload the data manually:</span>
+      <label class="upload-btn">Choose gamemaster.json<input type="file" id="fileInput" accept=".json,application/json"></label>
+    </div>
+  </header>
+
+  <section class="deck">
+    <div class="deck-label">Mode</div>
+    <div class="seg">
+      <button class="mode-btn active" data-mode="normal">Normal</button>
+      <button class="mode-btn" data-mode="shadow">Shadow</button>
+    </div>
+
+    <div class="deck-label">Search Pokémon</div>
+    <div class="search-box">
+      <input type="text" id="search" placeholder="e.g. Azumarill, Medicham, Registeel…" autocomplete="off" disabled>
+      <div class="suggest" id="suggest"></div>
+    </div>
+    <div class="chips" id="chips"></div>
+
+    <div class="deck-label">Leagues</div>
+    <div class="lg-grid">
+      <label class="lg-toggle great"><input type="checkbox" value="great" checked><span class="nm">Great</span><span class="cap">CP 1500</span></label>
+      <label class="lg-toggle ultra"><input type="checkbox" value="ultra" checked><span class="nm">Ultra</span><span class="cap">CP 2500</span></label>
+      <label class="lg-toggle master"><input type="checkbox" value="master"><span class="nm">Master</span><span class="cap">no cap</span></label>
+      <label class="lg-toggle little"><input type="checkbox" value="little"><span class="nm">Little</span><span class="cap">CP 500</span></label>
+    </div>
+
+    <div class="deck-label">Ranks</div>
+    <div class="rank-row">
+      <input type="text" id="rankInput" value="1-10" autocomplete="off" inputmode="text" placeholder="1-10">
+      <div class="hint">e.g. 1-10 · 1-5 · 1,3,6 · 1-3,7,10 — hundo &amp; nundo are always included</div>
+    </div>
+
+    <label class="evo-toggle" id="evoToggle">
+      <input type="checkbox" id="baseFormChk" checked>
+      <span class="box"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="evo-text"><strong>Catch as base form</strong> — use the dex ID of the lowest <em>wild-catchable</em> evolution (e.g. Venusaur → catch Bulbasaur with the same IVs and evolve). Egg-only baby Pokémon are skipped.</span>
+    </label>
+
+    <div class="actions">
+      <button class="btn primary" id="genBtn" disabled>Generate filters</button>
+      <button class="btn" id="copyAllBtn" disabled>Copy all</button>
+      <span class="meta" id="countMeta"></span>
+    </div>
+  </section>
+
+  <div class="output" id="output">
+    <div class="empty">
+      <svg viewBox="0 0 44 48" fill="none"><path d="M22 2 40 12.5V35.5L22 46 4 35.5V12.5Z" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+      <div>Add Pokémon and tap <strong>Generate filters</strong>.</div>
+    </div>
+  </div>
+
+  <footer>
+    Rankings computed with stat product · chosen ranks + hundo + nundo<br>
+    Data: <a href="https://github.com/pvpoke/pvpoke" target="_blank" rel="noopener">PvPoke GameMaster</a> · not affiliated with Niantic or Pokémon
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- CONFIG ---------- */
+const GM_URL = "https://raw.githubusercontent.com/pvpoke/pvpoke/master/src/data/gamemaster.json";
+const GM_FALLBACK = "https://cdn.jsdelivr.net/gh/pvpoke/pvpoke@master/src/data/gamemaster.json";
+const LEAGUES = {
+  great:  { name:"Great League",  cap:1500,     cls:"great",  capLabel:"CP 1500" },
+  ultra:  { name:"Ultra League",  cap:2500,     cls:"ultra",  capLabel:"CP 2500" },
+  master: { name:"Master League", cap:Infinity, cls:"master", capLabel:"no cap" },
+  little: { name:"Little Cup",    cap:500,      cls:"little", capLabel:"CP 500" }
+};
+const ORDER = ["great","ultra","master","little"];
+const TOP_N = 10;
+const MAX_LEVEL = 51;
+
+// Baby Pokémon: hatch from eggs only, not catchable in the wild.
+const BABY = new Set([
+  "pichu","cleffa","igglybuff","togepi","tyrogue","smoochum","elekid","magby",
+  "azurill","wynaut","budew","chingling","bonsly","mime_jr","happiny","munchlax",
+  "riolu","mantyke","toxel"
+]);
+
+/* ---------- STATE ---------- */
+let CPM = [];
+let RAW = [];
+let SHADOW_SET = new Set();
+let HAS_EVO = new Set();      // speciesIds that can evolve (Little Cup eligibility)
+let FAMILY = new Map();       // speciesId -> {speciesId, dex, name, parent}
+let POKEMON = [];
+let byKey = new Map();
+let selected = [];
+let activeSuggest = -1;
+let MODE = "normal";
+
+/* ---------- DOM ---------- */
+const $ = s => document.querySelector(s);
+const statusEl=$("#status"), statusText=$("#statusText");
+const searchEl=$("#search"), suggestEl=$("#suggest");
+const chipsEl=$("#chips"), outputEl=$("#output");
+const genBtn=$("#genBtn"), copyAllBtn=$("#copyAllBtn"), countMeta=$("#countMeta");
+const uploadRow=$("#uploadRow"), fileInput=$("#fileInput"), baseFormChk=$("#baseFormChk");
+const rankInput=$("#rankInput");
+
+const EMPTY = `<div class="empty"><svg viewBox="0 0 44 48" fill="none"><path d="M22 2 40 12.5V35.5L22 46 4 35.5V12.5Z" stroke="currentColor" stroke-width="2" fill="none"/></svg><div>Add Pokémon and tap <strong>Generate filters</strong>.</div></div>`;
+
+/* ---------- FILE UPLOAD FALLBACK ---------- */
+fileInput.addEventListener("change", e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  statusText.textContent = "Reading file…";
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{ processGameMaster(JSON.parse(reader.result)); }
+    catch(err){ fail("Couldn't read this file. Is it a valid gamemaster.json?"); }
+  };
+  reader.onerror = ()=> fail("Couldn't open the file.");
+  reader.readAsText(f);
+});
+
+/* ---------- LOAD DATA ---------- */
+async function loadData(){
+  let gm;
+  try{ gm = await fetchJSON(GM_FALLBACK); }
+  catch(e){
+    try{ gm = await fetchJSON(GM_URL); }
+    catch(e2){ return fail(); }
+  }
+  processGameMaster(gm);
+}
+
+function processGameMaster(gm){
+  // PvPoke's gamemaster.json does NOT include CP multipliers; compute them.
+  CPM = buildCPM();
+  if(!Array.isArray(gm.pokemon) || !gm.pokemon.length){ return fail("No Pokémon found in this file."); }
+
+  SHADOW_SET = new Set();
+  HAS_EVO = new Set();
+  FAMILY = new Map();
+  gm.pokemon.forEach(p=>{
+    if(/_shadow$/.test(p.speciesId)){ SHADOW_SET.add(p.speciesId.replace(/_shadow$/,"")); return; }
+    if(p.tags && p.tags.includes("shadoweligible")) SHADOW_SET.add(p.speciesId);
+    if(p.family && p.family.parent) HAS_EVO.add(p.family.parent);  // parent can evolve
+    if(p.dex){
+      FAMILY.set(p.speciesId, {
+        speciesId: p.speciesId,
+        dex: p.dex,
+        name: p.speciesName || p.speciesId,
+        parent: (p.family && p.family.parent) ? p.family.parent : null
+      });
+    }
+  });
+
+  const seen = new Set();
+  RAW = gm.pokemon
+    .filter(p => p.dex && p.baseStats && !/_shadow$/.test(p.speciesId))
+    .map(p => ({
+      speciesId: p.speciesId,
+      baseName: p.speciesName || p.speciesId,
+      dex: p.dex,
+      atk: p.baseStats.atk, def: p.baseStats.def, hp: p.baseStats.hp,
+      hasShadow: SHADOW_SET.has(p.speciesId)
+    }))
+    .filter(p => { const k=p.baseName.toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; })
+    .sort((a,b)=> a.dex - b.dex || a.baseName.localeCompare(b.baseName));
+
+  uploadRow.classList.remove("show");
+  statusEl.classList.remove("err");
+  rebuildList();
+  statusEl.classList.add("ok");
+  searchEl.disabled = false;
+  searchEl.placeholder = "e.g. Azumarill, Medicham, Registeel…";
+}
+
+// Walk up to the lowest WILD-catchable form (skips egg-only babies).
+function baseFormOf(speciesId){
+  let cur = speciesId, guard = 0;
+  while(guard++ < 12){
+    const e = FAMILY.get(cur);
+    if(!e || !e.parent) break;
+    if(BABY.has(e.parent)) break;
+    cur = e.parent;
+  }
+  return FAMILY.get(cur) || null;
+}
+
+function rebuildList(){
+  const src = (MODE === "shadow") ? RAW.filter(p=>p.hasShadow) : RAW;
+  POKEMON = src.map(p => ({
+    speciesId: p.speciesId, baseName: p.baseName,
+    name: p.baseName + (MODE === "shadow" ? " (Shadow)" : ""),
+    dex: p.dex, atk:p.atk, def:p.def, hp:p.hp
+  }));
+  byKey = new Map();
+  POKEMON.forEach(p => byKey.set(p.baseName.toLowerCase(), p));
+  selected = selected.filter(s => byKey.has(s.baseName.toLowerCase()))
+                     .map(s => byKey.get(s.baseName.toLowerCase()));
+  renderChips();
+  const label = MODE === "shadow" ? "shadow species" : "Pokémon";
+  statusText.textContent = POKEMON.length + " " + label + " loaded · ready";
+}
+
+function fetchJSON(url){ return fetch(url).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }); }
+function fail(msg){
+  statusEl.classList.remove("ok");
+  statusEl.classList.add("err");
+  statusText.textContent = msg || "Couldn't load data automatically. It works on GitHub Pages — or upload the file below.";
+  searchEl.placeholder = "Waiting for data…";
+  uploadRow.classList.add("show");
+}
+
+/* ---------- CP / STAT PRODUCT ---------- */
+function buildCPM(){
+  const anchors = [[1,0.094],[10,0.42250001],[20,0.59740001],[30,0.7317],[40,0.79030001]];
+  const intCPM = {};
+  for(let s=0;s<anchors.length-1;s++){
+    const [la,ca]=anchors[s], [lb,cb]=anchors[s+1];
+    for(let L=la;L<=lb;L++) intCPM[L]=Math.sqrt(ca*ca+(L-la)/(lb-la)*(cb*cb-ca*ca));
+  }
+  for(let L=41;L<=51;L++) intCPM[L]=0.79030001+0.005*(L-40);
+  const arr=[];
+  for(let L=1;L<=51;L+=0.5){
+    arr.push(Number.isInteger(L) ? intCPM[L]
+      : Math.sqrt((intCPM[Math.floor(L)]**2 + intCPM[Math.ceil(L)]**2)/2));
+  }
+  return arr;
+}
+function cpmFor(level){ return CPM[Math.round((level-1)*2)]; }
+function calcCP(base, ivA, ivD, ivS, level){
+  const cpm = cpmFor(level);
+  const a=(base.atk+ivA)*cpm, d=(base.def+ivD)*cpm, s=(base.hp+ivS)*cpm;
+  return Math.max(10, Math.floor(a * Math.sqrt(d) * Math.sqrt(s) / 10));
+}
+function bestLevel(base, ivA, ivD, ivS, cap){
+  if(cap === Infinity){ const L=MAX_LEVEL; return { level:L, cp:calcCP(base,ivA,ivD,ivS,L) }; }
+  let best=null;
+  for(let L=1; L<=MAX_LEVEL; L+=0.5){
+    const cp = calcCP(base,ivA,ivD,ivS,L);
+    if(cp <= cap){ best={level:L, cp}; } else break;
+  }
+  return best;
+}
+function statProduct(base, ivA, ivD, ivS, cap){
+  const bl = bestLevel(base, ivA, ivD, ivS, cap);
+  if(!bl) return null;
+  const cpm = cpmFor(bl.level);
+  const a=(base.atk+ivA)*cpm, d=(base.def+ivD)*cpm, hp=Math.floor((base.hp+ivS)*cpm);
+  return { sp: a * d * hp, level:bl.level, cp:bl.cp };
+}
+function rankAll(mon, cap){
+  const base = {atk:mon.atk, def:mon.def, hp:mon.hp};
+  const rows = []; let max = 0;
+  for(let a=0;a<=15;a++)for(let d=0;d<=15;d++)for(let s=0;s<=15;s++){
+    const r = statProduct(base,a,d,s,cap);
+    if(!r) continue;
+    rows.push({a,d,s,sp:r.sp,level:r.level,cp:r.cp});
+    if(r.sp>max) max=r.sp;
+  }
+  rows.sort((x,y)=> y.sp - x.sp);
+  return { rows, max };
+}
+
+/* ---------- RANK SELECTION ---------- */
+// Parse a rank spec like "1-10", "1-5", "1,3,6", "1-3,7,10" into a sorted list.
+function parseRanks(str){
+  const set = new Set();
+  (str||"").split(",").forEach(part=>{
+    part = part.trim();
+    if(!part) return;
+    const m = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    if(m){
+      let a=+m[1], b=+m[2];
+      if(a>b)[a,b]=[b,a];
+      for(let i=Math.max(1,a); i<=Math.min(b,4096); i++) set.add(i);
+    }else if(/^\d+$/.test(part)){
+      const n=+part; if(n>=1 && n<=4096) set.add(n);
+    }
+  });
+  return [...set].sort((x,y)=>x-y);
+}
+
+/* ---------- BUILD OUTPUT ---------- */
+function generate(){
+  if(!selected.length) return;
+  const active = ORDER.filter(k => document.querySelector(`.lg-toggle input[value="${k}"]`).checked);
+  if(!active.length){ outputEl.innerHTML = `<div class="empty"><div>Select at least one league.</div></div>`; return; }
+
+  let ranks = parseRanks(rankInput.value);
+  if(!ranks.length){ ranks = Array.from({length:10},(_,i)=>i+1); rankInput.value = "1-10"; }
+
+  const useBaseForm = baseFormChk.checked;
+  outputEl.innerHTML = "";
+  let totalLines = 0;
+
+  active.forEach(lgKey=>{
+    const lg = LEAGUES[lgKey];
+    let html = "";
+    const plainLines = [];
+
+    selected.forEach(mon=>{
+      const {rows, max} = rankAll(mon, lg.cap);
+      if(!rows.length) return;
+
+      let catchForm = null;
+      if(useBaseForm){
+        const bf = baseFormOf(mon.speciesId);
+        if(bf && bf.dex !== mon.dex) catchForm = bf;
+      }
+      const dexOut = catchForm ? catchForm.dex : mon.dex;
+      const formSpeciesId = catchForm ? catchForm.speciesId : mon.speciesId;
+
+      // Little Cup eligibility note (must be able to evolve, i.e. unevolved)
+      let warn = "";
+      if(lgKey === "little" && !HAS_EVO.has(formSpeciesId)){
+        warn = `<span class="warn">not Little-eligible</span>`;
+      }
+
+      if(catchForm){
+        html += `<div class="mon-head">${mon.baseName}
+          <span class="arrow">→ catch</span> <span class="catch">${catchForm.name}</span>
+          <span class="dexn">#${dexOut}</span>${warn}</div>`;
+      }else{
+        html += `<div class="mon-head">${mon.name} <span class="dexn">#${dexOut}</span>${warn}</div>`;
+      }
+
+      const push = (code, pct, kind, label, rank)=>{
+        plainLines.push(code);
+        const p = (pct==="—") ? 0 : pct;
+        html += `<div class="row ${kind||''}" style="--p:${p}%">
+          <span class="rank">${rank||""}</span>
+          <span class="code">${code}</span>
+          <span class="pct">${pct==="—"?"—":pct+"%"}</span>
+          ${label?`<span class="label">${label}</span>`:``}
+        </div>`;
+      };
+
+      ranks.forEach(rk=>{
+        const r = rows[rk-1];
+        if(!r) return;
+        push(`${dexOut},${r.a},${r.d},${r.s}`, (r.sp/max*100).toFixed(2), "", "", rk);
+      });
+      const hundo = statProduct({atk:mon.atk,def:mon.def,hp:mon.hp},15,15,15,lg.cap);
+      push(`${dexOut},15,15,15`, hundo?(hundo.sp/max*100).toFixed(2):"—", "hundo", "hundo");
+      const nundo = statProduct({atk:mon.atk,def:mon.def,hp:mon.hp},0,0,0,lg.cap);
+      push(`${dexOut},0,0,0`, nundo?(nundo.sp/max*100).toFixed(2):"—", "nundo", "nundo");
+    });
+
+    if(!plainLines.length) return;
+    totalLines += plainLines.length;
+
+    const block = document.createElement("div");
+    block.className = "league-block " + lg.cls;
+    block.dataset.plain = plainLines.join("\n");
+    block.innerHTML = `
+      <div class="league-head">
+        <div class="name"><span class="tag"></span>${lg.name} <span class="cap">${lg.capLabel}</span></div>
+        <button class="copy-btn">Copy ${plainLines.length}</button>
+      </div>
+      <div class="strings">${html}</div>`;
+    outputEl.appendChild(block);
+  });
+
+  if(!outputEl.children.length){ outputEl.innerHTML = EMPTY; copyAllBtn.disabled=true; countMeta.textContent=""; return; }
+
+  outputEl.querySelectorAll(".league-block").forEach(b=>{
+    const btn = b.querySelector(".copy-btn");
+    btn.addEventListener("click", ()=> copyText(b.dataset.plain, btn));
+  });
+
+  copyAllBtn.disabled = false;
+  countMeta.textContent = `${totalLines} strings · ${selected.length}×${active.length}`;
+}
+
+function copyText(text, btn){
+  const orig = btn.textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.classList.add("copied"); btn.textContent="Copied ✓";
+    setTimeout(()=>{ btn.classList.remove("copied"); btn.textContent=orig; }, 1400);
+  }).catch(()=>{ btn.textContent="Copy failed"; setTimeout(()=>btn.textContent=orig,1400); });
+}
+
+/* ---------- SELECTION UI ---------- */
+function renderChips(){
+  chipsEl.innerHTML = selected.map((p,i)=>`
+    <span class="chip">${p.name}<span class="dexn">#${p.dex}</span>
+      <button data-i="${i}" aria-label="Remove ${p.name}">×</button></span>`).join("");
+  chipsEl.querySelectorAll("button").forEach(b=>{
+    b.addEventListener("click", ()=>{ selected.splice(+b.dataset.i,1); renderChips(); syncButtons(); });
+  });
+  syncButtons();
+}
+function syncButtons(){
+  genBtn.disabled = selected.length===0;
+  if(!selected.length){ copyAllBtn.disabled = true; countMeta.textContent=""; }
+}
+function addMon(mon){
+  if(selected.find(p=>p.speciesId===mon.speciesId)) return;
+  selected.push(mon);
+  searchEl.value=""; closeSuggest(); renderChips();
+}
+
+/* ---------- SEARCH / AUTOCOMPLETE ---------- */
+function openSuggest(matches){
+  if(!matches.length){ closeSuggest(); return; }
+  suggestEl.innerHTML = matches.map((m,i)=>`
+    <div data-key="${m.baseName.toLowerCase()}" class="${i===0?'active':''}">
+      <span>${m.name}</span><span class="dex">#${m.dex}</span></div>`).join("");
+  suggestEl.classList.add("open"); activeSuggest=0;
+  suggestEl.querySelectorAll("div").forEach(d=>{
+    d.addEventListener("click", ()=>{ const m=byKey.get(d.dataset.key); if(m) addMon(m); });
+  });
+}
+function closeSuggest(){ suggestEl.classList.remove("open"); suggestEl.innerHTML=""; activeSuggest=-1; }
+
+searchEl.addEventListener("input", ()=>{
+  const q = searchEl.value.trim().toLowerCase();
+  if(q.length<1){ closeSuggest(); return; }
+  const matches = POKEMON.filter(p=> p.baseName.toLowerCase().includes(q) || String(p.dex)===q).slice(0,40);
+  openSuggest(matches);
+});
+searchEl.addEventListener("keydown", e=>{
+  const items = [...suggestEl.querySelectorAll("div")];
+  if(!items.length) return;
+  if(e.key==="ArrowDown"){ e.preventDefault(); activeSuggest=Math.min(activeSuggest+1,items.length-1); }
+  else if(e.key==="ArrowUp"){ e.preventDefault(); activeSuggest=Math.max(activeSuggest-1,0); }
+  else if(e.key==="Enter"){ e.preventDefault(); const it=items[activeSuggest]; if(it){ const m=byKey.get(it.dataset.key); if(m) addMon(m); } return; }
+  else return;
+  items.forEach((it,i)=>it.classList.toggle("active", i===activeSuggest));
+  items[activeSuggest].scrollIntoView({block:"nearest"});
+});
+document.addEventListener("click", e=>{ if(!e.target.closest(".search-box")) closeSuggest(); });
+
+genBtn.addEventListener("click", generate);
+copyAllBtn.addEventListener("click", ()=>{
+  const all = [...outputEl.querySelectorAll(".league-block")].map(b=>b.dataset.plain).join("\n");
+  if(all) copyText(all, copyAllBtn);
+});
+
+/* ---------- MODE TOGGLE ---------- */
+document.querySelectorAll(".mode-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    if(btn.classList.contains("active")) return;
+    document.querySelectorAll(".mode-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    MODE = btn.dataset.mode;
+    searchEl.value=""; closeSuggest();
+    rebuildList();
+    outputEl.innerHTML = EMPTY;
+    copyAllBtn.disabled = true; countMeta.textContent="";
+  });
+});
+
+/* ---------- GO ---------- */
+loadData();
+</script>
+</body>
+</html>
